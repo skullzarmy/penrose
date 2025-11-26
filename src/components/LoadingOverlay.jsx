@@ -1,23 +1,26 @@
 import { Loader2 } from "lucide-react"
-import { Progress } from "@/components/ui/progress"
+import { Progress } from '@/components/ui/progress'
 
-export default function LoadingOverlay({ progress }) {
+export default function LoadingOverlay({ progress, message }) {
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center animate-in fade-in duration-300">
-      <div className="flex flex-col items-center gap-6 p-8 rounded-2xl bg-card border shadow-xl w-full max-w-sm mx-4">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="text-center p-8 rounded-2xl bg-card border shadow-xl max-w-md mx-4 space-y-4">
         <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" />
-          <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
+          <div className="w-16 h-16 mx-auto mb-4 relative">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+            <div 
+              className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"
+              style={{ animationDuration: '1s' }}
+            ></div>
+          </div>
         </div>
         
-        <div className="space-y-2 w-full text-center">
-          <h3 className="text-lg font-semibold tracking-tight">Processing Media</h3>
-          <p className="text-sm text-muted-foreground">
-            Preparing your preview... {progress}%
-          </p>
-        </div>
-
-        <Progress value={progress} className="w-full h-2" />
+        {message && (
+          <p className="text-sm text-muted-foreground mb-2">{message}</p>
+        )}
+        
+        <Progress value={progress} className="w-full" />
+        <p className="text-sm text-muted-foreground">{progress}%</p>
       </div>
     </div>
   )

@@ -1,9 +1,12 @@
-import { X, ZoomIn, ZoomOut, Code, Maximize2, Eye, Palette } from 'lucide-react'
+import { X, ZoomIn, ZoomOut, Code, Maximize2, Eye, Palette, Download, Loader2 } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useState, useEffect, useRef } from 'react'
 
+import JSZip from 'jszip'
+import { saveAs } from 'file-saver'
+import { MediaHandler } from '@/lib/MediaHandler'
 import { SupportDialog } from './SupportDialog'
 
 export default function Controls({ scale, setScale, opacity, setOpacity, bgColor, setBgColor, onClear, file }) {
@@ -18,6 +21,7 @@ export default function Controls({ scale, setScale, opacity, setOpacity, bgColor
   const colorDebounceRef = useRef(null)
   const [copied, setCopied] = useState(false)
   const [showSupportDialog, setShowSupportDialog] = useState(false)
+  const [isZipping, setIsZipping] = useState(false)
 
 
   // Click outside handler
@@ -44,80 +48,10 @@ export default function Controls({ scale, setScale, opacity, setOpacity, bgColor
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showZoomPopout, showOpacityPopout, showBgColorPopout])
 
-  const copyHTML = async () => {
-    if (!file) return
-    
-    const isVideo = file.type.startsWith('video/')
-    const fileName = file.name
+  const generateHTML = (fileName) => {
     const size = `${2 * scale}px`
     
-    let html = ''
-    
-    if (isVideo) {
-      html = `<!-- Tiled Video Background -->
-<!-- Generated with PenRose - https://fafolab.xyz -->
-<style>
-  .video-container-wrapper {
-    position: fixed;
-    inset: 0;
-    background-color: ${bgColor};
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .video-grid {
-    display: grid;
-    grid-template-columns: repeat(4, ${size});
-    grid-template-rows: repeat(4, ${size});
-    width: fit-content;
-    height: fit-content;
-    opacity: ${opacity / 100};
-  }
-  .video-tile {
-    width: ${size};
-    height: ${size};
-    object-fit: cover;
-  }
-</style>
-
-<div class="video-container-wrapper">
-  <div class="video-grid" id="videoGrid"></div>
-</div>
-
-<script>
-  // Create 16 synchronized video tiles (4x4 grid)
-  const grid = document.getElementById('videoGrid');
-  const videoSrc = '${fileName}';
-  const tileCount = 16;
-  const videos = [];
-  
-  // Create video elements
-  for (let i = 0; i < tileCount; i++) {
-    const video = document.createElement('video');
-    video.src = videoSrc;
-    video.autoplay = true;
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.className = 'video-tile';
-    grid.appendChild(video);
-    videos.push(video);
-  }
-  
-  // Sync all videos to the first one (master)
-  const master = videos[0];
-  setInterval(() => {
-    const masterTime = master.currentTime;
-    videos.forEach((video, i) => {
-      if (i > 0 && Math.abs(video.currentTime - masterTime) > 0.3) {
-        video.currentTime = masterTime;
-      }
-    });
-  }, 100);
-</script>`
-    } else {
-      html = `<!-- Tiled Background -->
+    return `<!-- Tiled Background -->
 <!-- Generated with PenRose - https://fafolab.xyz -->
 <div style="
   position: fixed;
@@ -134,7 +68,13 @@ export default function Controls({ scale, setScale, opacity, setOpacity, bgColor
     opacity: ${opacity / 100};
   "></div>
 </div>`
-    }
+  }
+
+  const copyHTML = async () => {
+    if (!file) return
+    
+    const fileName = file.name
+    const html = generateHTML(fileName)
     
     try {
       await navigator.clipboard.writeText(html)
@@ -143,6 +83,35 @@ export default function Controls({ scale, setScale, opacity, setOpacity, bgColor
       setTimeout(() => setShowSupportDialog(true), 800)
     } catch (err) {
       console.error('Failed to copy:', err)
+    }
+  }
+
+  const handleDownloadZip = async () => {
+    if (!file) return
+    setIsZipping(true)
+
+    try {
+      const zip = new JSZip()
+
+      // Add media file (already converted to GIF if it was a video)
+      zip.file(file.name, file)
+
+      // Generate and add HTML
+      const html = generateHTML(file.name)
+      zip.file("index.html", html)
+
+      // Generate ZIP
+      const content = await zip.generateAsync({ type: "blob" })
+      saveAs(content, "penrose-tiled-background.zip")
+      
+      // Show support dialog after download starts
+      setTimeout(() => setShowSupportDialog(true), 1500)
+
+    } catch (err) {
+      console.error("Failed to generate ZIP:", err)
+      alert("Failed to generate ZIP. See console for details.")
+    } finally {
+      setIsZipping(false)
     }
   }
 
@@ -459,6 +428,27 @@ export default function Controls({ scale, setScale, opacity, setOpacity, bgColor
               </Button>
             </TooltipTrigger>
             <TooltipContent>Copy HTML Code</TooltipContent>
+          </Tooltip>
+
+          {/* Download ZIP */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDownloadZip}
+                disabled={isZipping}
+                className="h-9 w-9 rounded-full hover:bg-accent transition-colors"
+                aria-label="Download ZIP"
+              >
+                {isZipping ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Download className="h-5 w-5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Download ZIP (Optimized)</TooltipContent>
           </Tooltip>
 
           {/* Clear */}

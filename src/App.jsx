@@ -14,6 +14,7 @@ function App() {
   const [bgColor, setBgColor] = useState('#000000')
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [loadingMessage, setLoadingMessage] = useState('')
   const [error, setError] = useState(null)
 
   const handleFileSelect = async (selectedFile) => {
@@ -21,6 +22,7 @@ function App() {
     setError(null)
     setIsLoading(true)
     setProgress(0)
+    setLoadingMessage('')
     
     try {
       // Validate file type
@@ -28,15 +30,35 @@ function App() {
         throw new Error('Please select an image or video file')
       }
 
-      // Simulate progress for user feedback
-      const steps = 20
-      for (let i = 0; i <= steps; i++) {
-        setProgress(Math.round((i / steps) * 100))
-        await new Promise(resolve => setTimeout(resolve, 30))
+      let finalFile = selectedFile
+
+      // Convert video to GIF
+      if (selectedFile.type.startsWith('video/')) {
+        console.log('Converting video to GIF...')
+        setLoadingMessage('To optimize for use in tiled backgrounds, we are converting your video to GIF format. Please wait, this may take a few seconds...')
+        
+        const gifBlob = await MediaHandler.convertToGif(selectedFile, (progress) => {
+          setProgress(progress)
+        })
+        
+        // Create a new File object from the Blob
+        const nameParts = selectedFile.name.split('.')
+        nameParts.pop()
+        const newName = nameParts.join('.') + '.gif'
+        
+        finalFile = new File([gifBlob], newName, { type: 'image/gif' })
+        console.log('Conversion complete:', finalFile.name)
+      } else {
+        // For images, just simulate a quick progress
+        const steps = 20
+        for (let i = 0; i <= steps; i++) {
+          setProgress(Math.round((i / steps) * 100))
+          await new Promise(resolve => setTimeout(resolve, 20))
+        }
       }
 
-      console.log('Setting file:', selectedFile.name)
-      setFile(selectedFile)
+      console.log('Setting file:', finalFile.name)
+      setFile(finalFile)
     } catch (err) {
       console.error("Error loading file:", err)
       setError(err.message || 'Failed to load file')
@@ -68,7 +90,7 @@ function App() {
         </header>
 
         <main className="flex-1 relative overflow-hidden pt-16">
-          {isLoading && <LoadingOverlay progress={progress} />}
+          {isLoading && <LoadingOverlay progress={progress} message={loadingMessage} />}
           
           {error && (
             <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
