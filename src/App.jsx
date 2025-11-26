@@ -106,7 +106,7 @@ function App() {
         <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
         <div className="fixed inset-0 bg-gradient-to-tr from-background via-transparent to-background/80 pointer-events-none" />
         
-        <header className="p-4 border-b flex justify-between items-center bg-card/50 backdrop-blur-sm fixed top-0 w-full z-50 transition-colors duration-300">
+        <header className="p-4 border-b flex justify-between items-center bg-card/90 backdrop-blur-md fixed top-0 w-full z-50 transition-colors duration-300 shadow-sm">
           <div className="flex items-center gap-3">
             <img 
               src="/logo.png" 
@@ -168,7 +168,7 @@ function App() {
           />
         )}
 
-        <footer className="fixed bottom-0 left-0 right-0 p-3 text-center text-xs text-muted-foreground/60 bg-background/50 backdrop-blur-sm border-t border-border/30 z-40">
+        <footer className="fixed bottom-0 left-0 right-0 p-3 text-center text-xs text-muted-foreground bg-background/90 backdrop-blur-md border-t border-border/30 z-40">
           © {new Date().getFullYear() > 2025 ? `2025 - ${new Date().getFullYear()}` : '2025'} PenRose. All rights reserved. a{' '}
           <a 
             href="https://fafolab.xyz" 
