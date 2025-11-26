@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import DropZone from '@/components/DropZone'
 import TiledPreview from '@/components/TiledPreview'
 import Controls from '@/components/Controls'
@@ -15,7 +15,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [loadingMessage, setLoadingMessage] = useState('')
+  const [warningMessage, setWarningMessage] = useState('')
   const [error, setError] = useState(null)
+  const abortControllerRef = useRef(null)
 
   const handleFileSelect = async (selectedFile) => {
     console.log('File selected:', selectedFile.name, selectedFile.type, selectedFile.size)
@@ -23,6 +25,11 @@ function App() {
     setIsLoading(true)
     setProgress(0)
     setLoadingMessage('')
+    setWarningMessage('')
+    
+    // Create a new abort controller for this operation
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
     
     try {
       // Validate file type
@@ -35,12 +42,20 @@ function App() {
       // Convert video to GIF
       if (selectedFile.type.startsWith('video/')) {
         console.log('Converting video to GIF...')
-        setLoadingMessage('To optimize for use in tiled backgrounds, we are converting your video to GIF format. Please wait, this may take a few seconds...')
+        setLoadingMessage('To optimize for use in tiled backgrounds, we are converting your video to GIF format.\nPlease wait, this may take a few seconds...')
+        
+        // Show warning for large files (> 1MB)
+        if (selectedFile.size > 1024 * 1024) {
+          setWarningMessage("Whoa! This video is gonna take a while... If you change your mind")
+        }
         
         const gifBlob = await MediaHandler.convertToGif(selectedFile, (progress) => {
+          if (abortController.signal.aborted) return
           setProgress(progress)
         })
         
+        if (abortController.signal.aborted) return
+
         // Create a new File object from the Blob
         const nameParts = selectedFile.name.split('.')
         nameParts.pop()
@@ -52,20 +67,37 @@ function App() {
         // For images, just simulate a quick progress
         const steps = 20
         for (let i = 0; i <= steps; i++) {
+          if (abortController.signal.aborted) return
           setProgress(Math.round((i / steps) * 100))
           await new Promise(resolve => setTimeout(resolve, 20))
         }
       }
 
+      if (abortController.signal.aborted) return
+
       console.log('Setting file:', finalFile.name)
       setFile(finalFile)
     } catch (err) {
+      if (abortControllerRef.current?.signal.aborted) return
       console.error("Error loading file:", err)
       setError(err.message || 'Failed to load file')
     } finally {
-      setIsLoading(false)
-      setProgress(0)
+      if (!abortControllerRef.current?.signal.aborted) {
+        setIsLoading(false)
+        setProgress(0)
+        setWarningMessage('')
+      }
     }
+  }
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    setIsLoading(false)
+    setProgress(0)
+    setWarningMessage('')
+    setLoadingMessage('')
   }
 
   return (
@@ -90,7 +122,14 @@ function App() {
         </header>
 
         <main className="flex-1 relative overflow-hidden pt-16">
-          {isLoading && <LoadingOverlay progress={progress} message={loadingMessage} />}
+          {isLoading && (
+            <LoadingOverlay 
+              progress={progress} 
+              message={loadingMessage} 
+              warningMessage={warningMessage}
+              onCancel={warningMessage ? handleCancel : undefined}
+            />
+          )}
           
           {error && (
             <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
